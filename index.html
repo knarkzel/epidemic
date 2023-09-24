@@ -6,6 +6,7 @@
     <title>Epidemic</title>
     <style>
       body {
+        background: black;
         display: flex;
         justify-content: center;
         align-items: center;
@@ -14,20 +15,32 @@
       }
 
       canvas {
-        background: darkblue;
+        border: 1px solid white;
       }
     </style>
   </head>
   <body>
-    <canvas id="screen" width="400" height="400"></canvas>
+    <canvas id="screen" width="640" height="640"></canvas>
     <script>
       // Get a reference to the canvas element
-      const canvas = document.getElementById("screen");
-      const ctx = canvas.getContext("2d");
+      const canvas = document.getElementById("screen")
+      const ctx = canvas.getContext("2d")
 
       // Draw the rectangle on the canvas
-      ctx.fillStyle = "lightblue";
-      ctx.fillRect(50, 100, 200, 100);
+      function drawPerson(x, y, infected) {
+        if (infected) {
+          ctx.fillStyle = "#34bdeb"
+        } else {
+          ctx.fillStyle = "#eb3443"          
+        }
+        ctx.fillRect(x, y, 16, 16)
+      }
+
+      // Persons
+      let persons = [[16, 16, false], [48, 32, true], [96, 96, true]]
+      for (let person of persons) {
+        drawPerson(person[0], person[1], person[2])
+      }
     </script>
   </body>
 </html>
