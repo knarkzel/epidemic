@@ -33,8 +33,31 @@
           this.y = y
           this.radius = 8
           this.infectionRadius = 64
+          this.infectionChance = 0.001
           this.direction = 0 // Angle in radians
           this.state = state // 0 is healthy, 1 is sick, 2 is recovered
+        }
+
+        infectNearby(persons) {
+          // Only infected persons can infect others
+          if (this.state !== 1) return;
+
+          for (let person of persons) {
+              // Check if the person is already infected or recovered
+              if (person.state !== 0) continue;
+
+              let dx = this.x - person.x;
+              let dy = this.y - person.y;
+              let distance = Math.sqrt(dx * dx + dy * dy);
+
+              // Check if the person is within the infection radius
+              if (distance <= this.infectionRadius) {
+                  // Infect the person
+                  if (Math.random() < this.infectionChance) {
+                      person.state = 1; // Set the person's state to infected
+                  }
+              }
+          }
         }
 
         draw(ctx) {
@@ -67,6 +90,10 @@
         move(amount) {
           this.x += (Math.random() - 0.5) * 2 * amount
           this.y += (Math.random() - 0.5) * 2 * amount
+          if (this.x > 640) this.x = 640;
+          if (this.y > 640) this.y = 640;
+          if (this.x < 0) this.x = 0;
+          if (this.y < 0) this.y = 0;
         }
       }
 
@@ -88,6 +115,7 @@
         for (let person of persons) {
           person.move(3)
           person.draw(ctx)
+          person.infectNearby(persons)
         }
 
         // Loop every tick
