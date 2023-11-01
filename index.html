@@ -26,21 +26,86 @@
       const canvas = document.getElementById("screen")
       const ctx = canvas.getContext("2d")
 
-      // Draw the rectangle on the canvas
-      function drawPerson(x, y, infected) {
-        if (infected) {
-          ctx.fillStyle = "#34bdeb"
-        } else {
-          ctx.fillStyle = "#eb3443"          
+      // Person
+      class Person {
+        constructor(x, y, state = 0) {
+          this.x = x
+          this.y = y
+          this.radius = 8
+          this.infectionRadius = 64
+          this.direction = 0 // Angle in radians
+          this.state = state // 0 is healthy, 1 is sick, 2 is recovered
         }
-        ctx.fillRect(x, y, 16, 16)
+
+        draw(ctx) {
+          if (this.state == 0) {
+            ctx.fillStyle = "white"
+          } else if (this.state == 1) {
+            ctx.fillStyle = "red"          
+          } else if (this.state == 2) {
+            ctx.fillStyle = "gray"  
+          }
+
+          // Draw person
+          ctx.beginPath()
+          ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI)
+          ctx.fill()
+
+          // Draw infection radius
+          if (this.state == 1) {
+            ctx.fillStyle = "red"
+            ctx.globalAlpha = 0.2
+            
+            ctx.beginPath()
+            ctx.arc(this.x, this.y, this.infectionRadius, 0, 2 * Math.PI)
+            ctx.fill()
+
+            ctx.globalAlpha = 1.0;
+          }
+        }
+
+        move(amount) {
+          this.x += (Math.random() - 0.5) * 2 * amount
+          this.y += (Math.random() - 0.5) * 2 * amount
+        }
       }
 
-      // Persons
-      let persons = [[16, 16, false], [48, 32, true], [96, 96, true]]
-      for (let person of persons) {
-        drawPerson(person[0], person[1], person[2])
+      // Create 100 random persons
+      let persons = []
+      for (let i = 0; i < 100; i++) {
+        let x = Math.random() * 640
+        let y = Math.random() * 640
+        let infected = Math.random() > 0.8
+        persons.push(new Person(x, y, infected ? 1 : 0))
       }
-    </script>
+
+      // Game loop
+      function loop() {
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw persons
+        for (let person of persons) {
+          person.move(3)
+          person.draw(ctx)
+        }
+
+        // Loop every tick
+        requestAnimationFrame(loop);
+      }
+      loop();
+
+      // INFECTION
+      // infection radius 
+      // chance of infection when in radius
+      // infection duration
+
+      // SOCIAL DISTANCING
+      // social distancing factor (how far apart)
+      // % of population that obeys social distancing
+
+      // QUARANTINE
+      // quarantine after x days of infection
+      // % of people don't sho    </script>
   </body>
 </html>
