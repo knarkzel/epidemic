@@ -3,37 +3,70 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
     <title>Epidemic</title>
     <style>
       body {
-        background: black;
-        display: flex;
-        justify-content: center;
-        align-items: center;
+        display: grid;
+        gap: 1em;
+        grid-template-columns: 1fr 1fr;
+        width: 100vw;
         height: 100vh;
+        padding: 0;
         margin: 0;
       }
 
+      #leftMenu {
+        margin: 1em;
+      }
+
       canvas {
-        border: 1px solid white;
+        margin: 1em;
+        background: black;
       }
     </style>
   </head>
   <body>
+    <div id="leftMenu">
+      <!-- Infection Chance Slider -->
+      <div>
+        <label for="infection-chance">Infection Chance: <span id="infection-chance-value">0.001</span>
+        </label>
+        <input type="range" id="infection-chance" min="0" max="0.01" step="0.0001" value="0.001">
+      </div>
+  
+      <!-- Infection Radius Slider -->
+      <div>
+        <label for="infection-radius">Infection Radius: <span id="infection-radius-value">64</span></label>
+        <input type="range" id="infection-radius" min="0" max="100" step="1" value="64">
+      </div>
+
+      <button onclick="loop()">Play</button>
+    </div>
+
     <canvas id="screen" width="640" height="640"></canvas>
+    
     <script>
       // Get a reference to the canvas element
       const canvas = document.getElementById("screen")
       const ctx = canvas.getContext("2d")
+      
+      // Sliders 
+      const infectionChanceSlider = document.getElementById('infection-chance');
+      const infectionChanceValue = document.getElementById('infection-chance-value');
+      const infectionRadiusSlider = document.getElementById('infection-radius');
+      const infectionRadiusValue = document.getElementById('infection-radius-value');  
+
+      // Global data
+      let infectionChance = 0.001
+      let infectionRadius = 64
 
       // Person
       class Person {
-        constructor(x, y, state = 0) {
+      constructor(x, y, state = 0) {
           this.x = x
           this.y = y
           this.radius = 8
-          this.infectionRadius = 64
-          this.infectionChance = 0.001
           this.direction = 0 // Angle in radians
           this.state = state // 0 is healthy, 1 is sick, 2 is recovered
         }
@@ -51,9 +84,9 @@
               let distance = Math.sqrt(dx * dx + dy * dy);
 
               // Check if the person is within the infection radius
-              if (distance <= this.infectionRadius) {
+              if (distance <= infectionRadius) {
                   // Infect the person
-                  if (Math.random() < this.infectionChance) {
+                  if (Math.random() < infectionChance) {
                       person.state = 1; // Set the person's state to infected
                   }
               }
@@ -80,7 +113,7 @@
             ctx.globalAlpha = 0.2
             
             ctx.beginPath()
-            ctx.arc(this.x, this.y, this.infectionRadius, 0, 2 * Math.PI)
+            ctx.arc(this.x, this.y, infectionRadius, 0, 2 * Math.PI)
             ctx.fill()
 
             ctx.globalAlpha = 1.0;
@@ -107,6 +140,22 @@
       }
 
       // Game loop
+      function sliders() {
+        // Update the simulation variables when the sliders change
+        infectionChanceSlider.addEventListener('input', function() {
+          infectionChance = parseFloat(this.value)
+          infectionChanceValue.textContent = this.value
+        });
+
+        infectionRadiusSlider.addEventListener('input', function() {
+          infectionRadius = parseFloat(this.value)
+          infectionRadiusValue.textContent = this.value
+        });
+
+        requestAnimationFrame(sliders)
+      }
+      sliders()
+
       function loop() {
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -121,7 +170,6 @@
         // Loop every tick
         requestAnimationFrame(loop);
       }
-      loop();
 
       // INFECTION
       // infection radius 
