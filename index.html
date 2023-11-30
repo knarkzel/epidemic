@@ -1,187 +1,438 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
-    <title>Epidemic</title>
-    <style>
-      body {
-        display: grid;
-        gap: 1em;
-        grid-template-columns: 1fr 1fr;
-        width: 100vw;
-        height: 100vh;
-        padding: 0;
-        margin: 0;
-      }
 
-      #leftMenu {
-        margin: 1em;
-      }
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <title>Epidemic</title>
+  <style>
+    body {
+      display: grid;
+      gap: 1em;
+      grid-template-columns: 1fr 1fr;
+      width: 100vw;
+      height: 100vh;
+      padding: 0;
+      margin: 0;
+    }
 
-      canvas {
-        margin: 1em;
-        background: black;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="leftMenu">
-      <!-- Infection Chance Slider -->
-      <div>
-        <label for="infection-chance">Infection Chance: <span id="infection-chance-value">0.001</span>
-        </label>
-        <input type="range" id="infection-chance" min="0" max="0.01" step="0.0001" value="0.001">
-      </div>
-  
-      <!-- Infection Radius Slider -->
-      <div>
-        <label for="infection-radius">Infection Radius: <span id="infection-radius-value">64</span></label>
-        <input type="range" id="infection-radius" min="0" max="100" step="1" value="64">
-      </div>
+    #leftMenu {
+      margin: 1em;
+    }
 
-      <button onclick="loop()">Play</button>
+    #screen {
+      margin: 1em;
+      background: black;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="leftMenu">
+    <canvas id="chart"></canvas>
+
+    <h4>Requires reset</h4>
+
+    <!-- Population Size -->
+    <div>
+      <label for="population-size">Population size: <span id="population-size-value">100</span>
+      </label>
+      <input type="range" id="population-size" min="0" max="1000" step="1" value="100">
     </div>
 
+    <!-- Infected Percentage -->
+    <div>
+      <label for="infected-percentage">Infected (%): <span id="infected-percentage-value">20</span>
+      </label>
+      <input type="range" id="infected-percentage" min="1" max="100" step="1" value="20">
+    </div>
+
+    <h4>Can be changed real-time</h4>
+
+    <!-- Infection Chance Slider -->
+    <div>
+      <label for="infection-chance">Infection Chance (%): <span id="infection-chance-value">0.001</span>
+      </label>
+      <input type="range" id="infection-chance" min="0" max="0.01" step="0.0001" value="0.001">
+    </div>
+
+    <!-- Infection Radius Slider -->
+    <div>
+      <label for="infection-radius">Infection Radius (px): <span id="infection-radius-value">64</span></label>
+      <input type="range" id="infection-radius" min="0" max="100" step="1" value="64">
+    </div>
+    <!-- Social Distancing Slider -->
+    <div>
+      <label for="social-distancing">Social Distancing Factor: <span id="social-distancing-value">0</span></label>
+      <input type="range" id="social-distancing" min="0" max="10" step="1" value="0">
+    </div>
+
+    <!-- Social Distancing Percentage -->
+    <div>
+      <label for="social-distancing-percentage">Social Distancing (% of population): <span
+          id="social-distancing-percentage-value">0</span></label>
+      <input type="range" id="social-distancing-percentage" min="0" max="100" step="1" value="0">
+    </div>
+
+    <!-- <button onclick="loop()">Play</button> -->
+    <button onclick="playPauseToggle()">Play</button>
+    <button onclick="resetSimulation()">Reset</button>
+  </div>
+
+  <div>
     <canvas id="screen" width="640" height="640"></canvas>
-    
-    <script>
-      // Get a reference to the canvas element
-      const canvas = document.getElementById("screen")
-      const ctx = canvas.getContext("2d")
-      
-      // Sliders 
-      const infectionChanceSlider = document.getElementById('infection-chance');
-      const infectionChanceValue = document.getElementById('infection-chance-value');
-      const infectionRadiusSlider = document.getElementById('infection-radius');
-      const infectionRadiusValue = document.getElementById('infection-radius-value');  
+    <div id="statusCounters">
+      <p>Healthy: <span id="healthyCount">0</span></p>
+      <p>Infected: <span id="infectedCount">0</span></p>
+      <p>Removed: <span id="removedCount">0</span></p>
+    </div>
+  </div>
 
-      // Global data
-      let infectionChance = 0.001
-      let infectionRadius = 64
+  <script>
+    // Get a reference to the canvas element
+    const canvas = document.getElementById("screen")
+    const chart = document.getElementById("chart")
+    const ctx = canvas.getContext("2d")
+    const chartCtx = chart.getContext("2d")
 
-      // Person
-      class Person {
-      constructor(x, y, state = 0) {
-          this.x = x
-          this.y = y
-          this.radius = 8
-          this.direction = 0 // Angle in radians
-          this.state = state // 0 is healthy, 1 is sick, 2 is recovered
+    // Sliders 
+    const infectionChanceSlider = document.getElementById('infection-chance');
+    const infectionChanceValue = document.getElementById('infection-chance-value');
+    const infectionRadiusSlider = document.getElementById('infection-radius');
+    const infectionRadiusValue = document.getElementById('infection-radius-value');
+    const socialDistancingSlider = document.getElementById('social-distancing');
+    const socialDistancingValue = document.getElementById('social-distancing-value');
+    const socialDistancingPercentageSlider = document.getElementById('social-distancing-percentage');
+    const socialDistancingPercentageValue = document.getElementById('social-distancing-percentage-value');
+    const populationSizeSlider = document.getElementById('population-size');
+    const populationSizeValue = document.getElementById('population-size-value');
+    const infectedPercentageSlider = document.getElementById('infected-percentage');
+    const infectedPercentageValue = document.getElementById('infected-percentage-value');
+
+    // Global data
+    let populationSize = 100
+    let infectedPercentage = 20
+    let infectionChance = 0.001
+    let infectionRadius = 64
+    let socialDistancingFactor = 0
+    let socialDistancingPercentage = 0
+    let recoveryChance = 0.001
+    let persons = [];
+
+    // Person
+    class Person {
+      constructor(x, y, state = 0, practicesSocialDistancing = false) {
+        this.x = x;
+        this.y = y;
+        this.radius = 8; // size of person
+        this.direction = Math.random() * Math.PI * 2; // Random initial direction
+        this.state = state; // 0 is healthy, 1 is sick, 2 is recovered
+        this.practicesSocialDistancing = practicesSocialDistancing;
+        this.movementDuration = 0; // Duration for which to maintain current direction
+        this.isMoving = true; // Whether the person is moving or standing still
+      }
+
+      becomeHealthy() {
+        if (this.state === 1 && Math.random() < recoveryChance) {
+          this.state = 2;
         }
+      }
 
-        infectNearby(persons) {
-          // Only infected persons can infect others
-          if (this.state !== 1) return;
+      infectNearby(persons) {
+        // Only infected persons can infect others
+        if (this.state !== 1) return;
 
-          for (let person of persons) {
-              // Check if the person is already infected or recovered
-              if (person.state !== 0) continue;
+        for (let person of persons) {
+          // Check if the person is already infected or recovered
+          if (person.state !== 0) continue;
 
-              let dx = this.x - person.x;
-              let dy = this.y - person.y;
-              let distance = Math.sqrt(dx * dx + dy * dy);
+          let dx = this.x - person.x;
+          let dy = this.y - person.y;
+          let distance = Math.sqrt(dx * dx + dy * dy);
 
-              // Check if the person is within the infection radius
-              if (distance <= infectionRadius) {
-                  // Infect the person
-                  if (Math.random() < infectionChance) {
-                      person.state = 1; // Set the person's state to infected
-                  }
-              }
+          // Check if the person is within the infection radius
+          if (distance <= infectionRadius) {
+            // Infect the person
+            if (Math.random() < infectionChance) {
+              person.state = 1; // Set the person's state to infected
+            }
           }
         }
+      }
 
-        draw(ctx) {
-          if (this.state == 0) {
-            ctx.fillStyle = "white"
-          } else if (this.state == 1) {
-            ctx.fillStyle = "red"          
-          } else if (this.state == 2) {
-            ctx.fillStyle = "gray"  
-          }
+      draw(ctx) {
+        if (this.state == 0) {
+          ctx.fillStyle = "white"
+        } else if (this.state == 1) {
+          ctx.fillStyle = "red"
+        } else if (this.state == 2) {
+          ctx.fillStyle = "gray"
+        }
 
-          // Draw person
+        // Draw person
+        ctx.beginPath()
+        ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI)
+        ctx.fill()
+
+        // Draw infection radius
+        if (this.state == 1) {
+          ctx.fillStyle = "red"
+          ctx.globalAlpha = 0.2
+
           ctx.beginPath()
-          ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI)
+          ctx.arc(this.x, this.y, infectionRadius, 0, 2 * Math.PI)
           ctx.fill()
 
-          // Draw infection radius
-          if (this.state == 1) {
-            ctx.fillStyle = "red"
-            ctx.globalAlpha = 0.2
-            
-            ctx.beginPath()
-            ctx.arc(this.x, this.y, infectionRadius, 0, 2 * Math.PI)
-            ctx.fill()
+          ctx.globalAlpha = 1.0;
+        }
+      }
 
-            ctx.globalAlpha = 1.0;
+      move(amount) {
+        // Update movement duration
+        if (this.movementDuration <= 0) {
+          this.movementDuration = Math.random() * 50 + 50; // Random duration between 50 to 100 ticks
+          this.isMoving = Math.random() < 0.8; // 80% chance to keep moving
+          if (this.isMoving) {
+            this.direction = Math.random() * Math.PI * 2; // Choose a new direction
           }
+        } else {
+          this.movementDuration--;
         }
 
-        move(amount) {
-          this.x += (Math.random() - 0.5) * 2 * amount
-          this.y += (Math.random() - 0.5) * 2 * amount
-          if (this.x > 640) this.x = 640;
-          if (this.y > 640) this.y = 640;
-          if (this.x < 0) this.x = 0;
-          if (this.y < 0) this.y = 0;
+        if (this.isMoving) {
+          let dx = Math.cos(this.direction);
+          let dy = Math.sin(this.direction);
+
+          // Apply social distancing
+          if (socialDistancingFactor > 0) {
+            persons.forEach(other => {
+              if (other !== this) {
+                let distance = Math.sqrt((this.x - other.x) ** 2 + (this.y - other.y) ** 2);
+                if (distance < (50 + socialDistancingFactor * 5)) {
+                  dx += (this.x - other.x) / distance;
+                  dy += (this.y - other.y) / distance;
+                }
+              }
+            });
+          }
+
+          this.x += dx * amount;
+          this.y += dy * amount;
+        }
+
+        // Keep the person within bounds
+        if (this.x > 640) this.x = 640;
+        if (this.y > 640) this.y = 640;
+        if (this.x < 0) this.x = 0;
+        if (this.y < 0) this.y = 0;
+      }
+    }
+
+    // Function to update social distancing status of each person
+    function updateSocialDistancing() {
+      let count = Math.floor((socialDistancingPercentage / 100) * persons.length);
+      persons.forEach((person, index) => {
+        person.practicesSocialDistancing = index < count;
+      });
+    }
+
+    function initializePopulation() {
+      persons = []; // Reset the population array
+      let infectedCount = Math.ceil((infectedPercentage / 100) * populationSize);
+
+      for (let i = 0; i < populationSize; i++) {
+        let x = Math.random() * 640;
+        let y = Math.random() * 640;
+        let infected = i < infectedCount;
+        let practicesSocialDistancing = i < (socialDistancingPercentage / 100) * populationSize;
+        persons.push(new Person(x, y, infected ? 1 : 0, practicesSocialDistancing));
+      }
+    }
+
+    // Game loop
+    function sliders() {
+      // Update the simulation variables when the sliders change
+      populationSizeSlider.addEventListener('input', function () {
+        populationSize = parseInt(this.value);
+        populationSizeValue.textContent = this.value;
+      });
+
+      infectedPercentageSlider.addEventListener('input', function () {
+        infectedPercentage = parseInt(this.value);
+        infectedPercentageValue.textContent = this.value;
+      });
+
+      infectionChanceSlider.addEventListener('input', function () {
+        infectionChance = parseFloat(this.value)
+        infectionChanceValue.textContent = this.value
+      });
+
+      infectionRadiusSlider.addEventListener('input', function () {
+        infectionRadius = parseFloat(this.value)
+        infectionRadiusValue.textContent = this.value
+      });
+
+      socialDistancingSlider.addEventListener('input', function () {
+        socialDistancingFactor = parseInt(this.value);
+        socialDistancingValue.textContent = this.value;
+      });
+
+      socialDistancingPercentageSlider.addEventListener('input', function () {
+        socialDistancingPercentage = parseInt(this.value);
+        socialDistancingPercentageValue.textContent = this.value;
+        updateSocialDistancing();
+      });
+
+      requestAnimationFrame(sliders)
+    }
+    sliders()
+
+    // Chart
+    const diagram = new Chart(chartCtx, {
+      type: 'line',
+      data: {
+        labels: [], // X-axis labels, e.g., time intervals
+        datasets: [
+          {
+            label: 'Infected',
+            data: [],
+            fill: true,
+            backgroundColor: 'rgba(255, 99, 132, 0.6)',
+            borderColor: 'rgba(255, 99, 132, 1)',
+            borderWidth: 1,
+            pointRadius: 0
+          },
+          {
+            label: 'Healthy',
+            data: [],
+            fill: '-1', // Fill towards the previous dataset (Infected)
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            borderColor: 'rgba(75, 192, 192, 1)',
+            borderWidth: 1,
+            pointRadius: 0
+          },
+          {
+            label: 'Removed',
+            data: [],
+            fill: '-1', // Fill towards the previous dataset (Healthy)
+            backgroundColor: 'rgba(20, 20, 20, 0.6)',
+            borderColor: 'rgba(255, 255, 40, 1)',
+            borderWidth: 1,
+            pointRadius: 0
+          }
+        ]
+      },
+      options: {
+        scales: {
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            max: 100,
+            ticks: {
+              // Callback to format ticks as percentages
+              callback: function (value, index, values) {
+                return value + '%';
+              }
+            }
+          }
+        },
+        animation: {
+          duration: 0 // Disable animation
         }
       }
+    });
 
-      // Create 100 random persons
-      let persons = []
-      for (let i = 0; i < 100; i++) {
-        let x = Math.random() * 640
-        let y = Math.random() * 640
-        let infected = Math.random() > 0.8
-        persons.push(new Person(x, y, infected ? 1 : 0))
+    let isPlaying = false
+    let updateCount = 0
+    async function updateChart(reset = false) {
+      if (reset) {
+        diagram.data.labels = [];
+        diagram.data.datasets[0].data = [];
+        diagram.data.datasets[1].data = [];
+        updateCount = 0;
       }
 
-      // Game loop
-      function sliders() {
-        // Update the simulation variables when the sliders change
-        infectionChanceSlider.addEventListener('input', function() {
-          infectionChance = parseFloat(this.value)
-          infectionChanceValue.textContent = this.value
-        });
+      if (isPlaying) {
+        // Calcultate healthy
+        let healthy = 0
+        let infected = 0
+        let removed = 0
 
-        infectionRadiusSlider.addEventListener('input', function() {
-          infectionRadius = parseFloat(this.value)
-          infectionRadiusValue.textContent = this.value
-        });
-
-        requestAnimationFrame(sliders)
-      }
-      sliders()
-
-      function loop() {
-        // Clear canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Draw persons
         for (let person of persons) {
-          person.move(3)
-          person.draw(ctx)
-          person.infectNearby(persons)
+          if (person.state == 0) healthy++;
+          if (person.state == 1) infected++;
+          if (person.state == 2) removed++;
         }
 
-        // Loop every tick
-        requestAnimationFrame(loop);
+        let healthyPercentage = (healthy / populationSize) * 100;
+        let infectedPercentage = (infected / populationSize) * 100;
+        let removedPercentage = (removed / populationSize) * 100;
+
+        diagram.data.labels.push(updateCount++);
+        diagram.data.datasets[0].data.push(infectedPercentage); // Infected
+        diagram.data.datasets[1].data.push(healthyPercentage); // Healthy
+        diagram.data.datasets[2].data.push(removedPercentage); // Removed
+        diagram.update();
+
+        document.getElementById('healthyCount').textContent = healthy;
+        document.getElementById('infectedCount').textContent = infected;
+        document.getElementById('removedCount').textContent = removed;
+      }
+    }
+    setInterval(updateChart, 100)
+
+    function playPauseToggle() {
+      if (persons.length === 0) {
+        initializePopulation();
       }
 
-      // INFECTION
-      // infection radius 
-      // chance of infection when in radius
-      // infection duration
+      if (!isPlaying) {
+        isPlaying = true;
+        loop();
+        document.querySelector('button[onclick="playPauseToggle()"]').textContent = 'Pause';
+      } else {
+        cancelAnimationFrame(animationFrameId);
+        isPlaying = false;
+        document.querySelector('button[onclick="playPauseToggle()"]').textContent = 'Play';
+      }
+    }
 
-      // SOCIAL DISTANCING
-      // social distancing factor (how far apart)
-      // % of population that obeys social distancing
+    function resetSimulation() {
+      cancelAnimationFrame(animationFrameId);
+      initializePopulation();
+      updateChart(reset = true);
 
-      // QUARANTINE
-      // quarantine after x days of infection
-      // % of people don't sho    </script>
-  </body>
+      // Start playing the simulation
+      isPlaying = true;
+      document.querySelector('button[onclick="playPauseToggle()"]').textContent = 'Pause';
+      loop();
+    }
+
+    let animationFrameId;
+    function loop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      for (let person of persons) {
+        person.move(0.5);
+        person.draw(ctx);
+        person.becomeHealthy();
+        person.infectNearby(persons);
+      }
+
+      if (isPlaying) {
+        animationFrameId = requestAnimationFrame(loop);
+      }
+    }
+
+    // Initialize population and chart when the page loads
+    // initializePopulation();
+    // updateChart();  // Optionally, update the chart immediately
+
+    // Event listeners
+    sliders();
+  </script>
+</body>
+
 </html>
