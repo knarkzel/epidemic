@@ -63,6 +63,7 @@
       <label for="infection-radius">Infection Radius (px): <span id="infection-radius-value">64</span></label>
       <input type="range" id="infection-radius" min="0" max="100" step="1" value="64">
     </div>
+
     <!-- Social Distancing Slider -->
     <div>
       <label for="social-distancing">Social Distancing Factor: <span id="social-distancing-value">0</span></label>
@@ -112,8 +113,8 @@
     const infectedPercentageValue = document.getElementById('infected-percentage-value');
 
     // Global data
-    let populationSize = 100
-    let infectedPercentage = 20
+    let newPopulationSize = 100
+    let newInfectedPercentage = 20
     let infectionChance = 0.001
     let infectionRadius = 64
     let socialDistancingFactor = 0
@@ -401,6 +402,10 @@
 
     function resetSimulation() {
       cancelAnimationFrame(animationFrameId);
+
+      populationSize = newPopulationSize;
+      infectedPercentage = newInfectedPercentage;
+
       initializePopulation();
       updateChart(reset = true);
 
